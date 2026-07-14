@@ -1,0 +1,14 @@
+# Entornos virtuales
+venv/
+env/
+.venv/
+
+# Variables de entorno
+.env
+
+# Archivos de caché
+__pycache__/
+*.pyc
+
+# Archivos temporales
+test_models.py

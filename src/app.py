@@ -50,18 +50,28 @@ st.markdown("---")
 
 # --- Carga del sistema RAG (una sola vez por sesión del servidor) ---
 @st.cache_resource(show_spinner="Indexando el reglamento oficial...")
-def inicializar_rag():
+def inicializar_rag(api_key: str):
     """
     Carga el PDF, crea los chunks y construye/carga el vectorstore FAISS.
     Se ejecuta una sola vez gracias a @st.cache_resource.
     """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key or api_key == "tu_api_key_aqui":
-        return None
     chunks = cargar_y_trocear_pdf(PDF_PATH)
     return obtener_o_crear_vectorstore(chunks, api_key)
 
-vectorstore = inicializar_rag()
+# Leer la API Key: primero desde st.secrets (Streamlit Cloud), luego desde .env (local)
+def obtener_api_key() -> str:
+    try:
+        return st.secrets["GEMINI_API_KEY"]
+    except (KeyError, FileNotFoundError):
+        return os.getenv("GEMINI_API_KEY", "")
+
+api_key = obtener_api_key()
+
+if not api_key or api_key == "tu_api_key_aqui":
+    st.error("⚠️ No se encontró la API Key. Configúrala en Streamlit Secrets o en el archivo .env.")
+    st.stop()
+
+vectorstore = inicializar_rag(api_key)
 
 if vectorstore is None:
     st.error("No se pudo inicializar el sistema. Verifica tu GEMINI_API_KEY.")

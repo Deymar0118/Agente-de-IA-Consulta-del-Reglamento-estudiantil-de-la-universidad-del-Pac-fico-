@@ -1,11 +1,33 @@
 import streamlit as st
+import os
 from langchain_core.messages import HumanMessage, AIMessage
 from main import extraer_texto_pdf, consultar_gemini, PDF_PATH
 
-st.set_page_config(page_title="Reglamento - U. del Pacífico", page_icon="🎓")
+# Rutas de recursos
+LOGO_PATH = os.path.join(os.path.dirname(__file__), '..', 'images', 'Escudo.jpg')
 
-st.title("🎓 Asistente IA - Universidad del Pacífico")
-st.markdown("Consulta el **Reglamento Estudiantil** usando inteligencia artificial.")
+st.set_page_config(page_title="Reglamento - U. del Pacífico", page_icon="🎓", layout="centered")
+
+# Estilos minimalistas CSS
+st.markdown("""
+    <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        .stChatInputContainer {padding-bottom: 20px;}
+    </style>
+""", unsafe_allow_html=True)
+
+# Encabezado con imagen y título
+col1, col2 = st.columns([1, 4])
+with col1:
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, use_container_width=True)
+with col2:
+    st.title("Asistente IA")
+    st.markdown("**Universidad del Pacífico**")
+
+st.markdown("---")
 
 # 1. Cargar y cachear el PDF
 @st.cache_data

@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 load_dotenv()
 
@@ -24,9 +24,9 @@ def extraer_texto_pdf(ruta_pdf):
         print(f"Error al leer el PDF: {e}")
         return ""
 
-def consultar_gemini(texto_contexto, pregunta):
+def consultar_gemini(texto_contexto, pregunta, historial=None):
     """
-    Fase 2: Enviar la pregunta y el contexto a la API usando LangChain.
+    Fase 2: Enviar la pregunta, el contexto y el historial a la API usando LangChain.
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key or api_key == "tu_api_key_aqui":
@@ -40,22 +40,29 @@ def consultar_gemini(texto_contexto, pregunta):
             temperature=0
         )
         
-        # Crear la plantilla del Prompt
+        # Crear la plantilla del Prompt con memoria
         prompt = ChatPromptTemplate.from_messages([
             ("system", "Eres un asistente virtual de la Universidad del Pacífico. Tu tarea es responder a las preguntas basándote ÚNICAMENTE en el siguiente reglamento oficial. Si la respuesta no está en el reglamento, debes decir: 'Lo siento, no encuentro información sobre eso en el reglamento oficial.'\n\nREGLAMENTO:\n{contexto}"),
+            MessagesPlaceholder(variable_name="historial"),
             ("human", "{pregunta}")
         ])
         
-        # Crear la cadena (Chain) uniendo prompt y LLM
-        chain = prompt | llm
+        # Crear la cadena (Chain) uniendo prompt, LLM y el analizador de salida
+        from langchain_core.output_parsers import StrOutputParser
+        chain = prompt | llm | StrOutputParser()
         
+        # Si no hay historial, pasamos una lista vacía
+        if historial is None:
+            historial = []
+            
         # Ejecutar la cadena
         response = chain.invoke({
             "contexto": texto_contexto,
+            "historial": historial,
             "pregunta": pregunta
         })
         
-        return response.content
+        return response
     except Exception as e:
         return f"Error al consultar Gemini con LangChain: {e}"
 
@@ -74,6 +81,9 @@ if __name__ == "__main__":
     print("Escribe 'salir' para terminar la conversación.\n")
     
     # 2. Bucle interactivo
+    historial_consola = []
+    from langchain_core.messages import HumanMessage, AIMessage
+    
     while True:
         try:
             pregunta_usuario = input("\n👤 Tú: ")
@@ -85,8 +95,12 @@ if __name__ == "__main__":
             if not pregunta_usuario.strip():
                 continue
                 
-            respuesta = consultar_gemini(texto_reglamento, pregunta_usuario)
+            respuesta = consultar_gemini(texto_reglamento, pregunta_usuario, historial_consola)
             print(f"\n🤖 Asistente:\n{respuesta}")
+            
+            # Guardar en memoria
+            historial_consola.append(HumanMessage(content=pregunta_usuario))
+            historial_consola.append(AIMessage(content=respuesta))
             
         except KeyboardInterrupt:
             print("\n¡Hasta luego!")

@@ -1,107 +1,63 @@
+"""
+Punto de entrada para ejecución local en consola.
+Orquesta los módulos RAG para una interfaz de texto interactiva.
+"""
 import os
+import sys
 from dotenv import load_dotenv
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
+
+# Añadir el directorio src al path para importaciones relativas
+sys.path.insert(0, os.path.dirname(__file__))
 
 load_dotenv()
 
-# Configuración inicial
+from loaders.pdf_loader import cargar_y_trocear_pdf
+from vectorstore.faiss_store import obtener_o_crear_vectorstore
+from llm.gemini_chain import consultar_con_rag
+
+# Ruta al documento PDF
 PDF_PATH = os.path.join(os.path.dirname(__file__), '..', 'documentos', 'Reglamento.pdf')
 
-def extraer_texto_pdf(ruta_pdf):
-    """
-    Fase 1: Extraer texto del documento PDF usando LangChain.
-    """
-    print(f"Leyendo el documento: {ruta_pdf}")
-    try:
-        loader = PyPDFLoader(ruta_pdf)
-        documentos = loader.load()
-        # Unir el texto de todas las páginas
-        texto = "\n".join([doc.page_content for doc in documentos])
-        return texto
-    except Exception as e:
-        print(f"Error al leer el PDF: {e}")
-        return ""
-
-def consultar_gemini(texto_contexto, pregunta, historial=None):
-    """
-    Fase 2: Enviar la pregunta, el contexto y el historial a la API usando LangChain.
-    """
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key or api_key == "tu_api_key_aqui":
-        return "Error: No se configuró una API Key válida en el archivo .env."
-    
-    try:
-        # Inicializar el modelo LLM de Google
-        llm = ChatGoogleGenerativeAI(
-            model="gemini-flash-latest", 
-            google_api_key=api_key, 
-            temperature=0
-        )
-        
-        # Crear la plantilla del Prompt con memoria
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", "Eres un asistente virtual de la Universidad del Pacífico. Tu tarea es responder a las preguntas basándote ÚNICAMENTE en el siguiente reglamento oficial. Si la respuesta no está en el reglamento, debes decir: 'Lo siento, no encuentro información sobre eso en el reglamento oficial.'\n\nREGLAMENTO:\n{contexto}"),
-            MessagesPlaceholder(variable_name="historial"),
-            ("human", "{pregunta}")
-        ])
-        
-        # Crear la cadena (Chain) uniendo prompt, LLM y el analizador de salida
-        from langchain_core.output_parsers import StrOutputParser
-        chain = prompt | llm | StrOutputParser()
-        
-        # Si no hay historial, pasamos una lista vacía
-        if historial is None:
-            historial = []
-            
-        # Ejecutar la cadena
-        response = chain.invoke({
-            "contexto": texto_contexto,
-            "historial": historial,
-            "pregunta": pregunta
-        })
-        
-        return response
-    except Exception as e:
-        return f"Error al consultar Gemini con LangChain: {e}"
 
 if __name__ == "__main__":
     print("--- Asistente de IA - Universidad del Pacífico ---")
-    print("Iniciando sistema y leyendo el reglamento...\n")
-    
-    # 1. Extraer texto
-    texto_reglamento = extraer_texto_pdf(PDF_PATH)
-    
-    if not texto_reglamento.strip():
-        print("Error: No se pudo extraer texto del documento.")
-        exit()
-        
-    print("¡Sistema listo! Puedes hacer preguntas sobre el reglamento.")
-    print("Escribe 'salir' para terminar la conversación.\n")
-    
-    # 2. Bucle interactivo
-    historial_consola = []
-    from langchain_core.messages import HumanMessage, AIMessage
-    
+    print("Iniciando sistema RAG...\n")
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "tu_api_key_aqui":
+        print("Error: Configura tu GEMINI_API_KEY en el archivo .env")
+        sys.exit(1)
+
+    # 1. Cargar y trocear el PDF
+    chunks = cargar_y_trocear_pdf(PDF_PATH)
+
+    # 2. Obtener o crear el vectorstore FAISS
+    vectorstore = obtener_o_crear_vectorstore(chunks, api_key)
+
+    print("\n¡Sistema listo! Puedes hacer preguntas sobre el reglamento.")
+    print("Escribe 'salir' para terminar.\n")
+
+    historial = []
+
     while True:
         try:
-            pregunta_usuario = input("\n👤 Tú: ")
-            
-            if pregunta_usuario.lower() in ['salir', 'exit', 'quit']:
+            pregunta = input("\n👤 Tú: ")
+
+            if pregunta.lower() in ['salir', 'exit', 'quit']:
                 print("¡Hasta luego!")
                 break
-            
-            if not pregunta_usuario.strip():
+
+            if not pregunta.strip():
                 continue
-                
-            respuesta = consultar_gemini(texto_reglamento, pregunta_usuario, historial_consola)
+
+            respuesta = consultar_con_rag(vectorstore, pregunta, historial)
             print(f"\n🤖 Asistente:\n{respuesta}")
-            
-            # Guardar en memoria
-            historial_consola.append(HumanMessage(content=pregunta_usuario))
-            historial_consola.append(AIMessage(content=respuesta))
-            
+
+            # Guardar en historial (memoria conversacional)
+            historial.append(HumanMessage(content=pregunta))
+            historial.append(AIMessage(content=respuesta))
+
         except KeyboardInterrupt:
             print("\n¡Hasta luego!")
             break

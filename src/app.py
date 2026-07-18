@@ -1,14 +1,33 @@
-import streamlit as st
+"""
+Interfaz gráfica web con Streamlit para el Asistente de IA RAG.
+"""
 import os
+import sys
+import streamlit as st
 from langchain_core.messages import HumanMessage, AIMessage
-from main import extraer_texto_pdf, consultar_gemini, PDF_PATH
+from dotenv import load_dotenv
 
-# Rutas de recursos
+load_dotenv()
+
+# Añadir src al path para importaciones de módulos locales
+sys.path.insert(0, os.path.dirname(__file__))
+
+from loaders.pdf_loader import cargar_y_trocear_pdf
+from vectorstore.faiss_store import obtener_o_crear_vectorstore
+from llm.gemini_chain import consultar_con_rag
+
+# Configuración de rutas
+PDF_PATH = os.path.join(os.path.dirname(__file__), '..', 'documentos', 'Reglamento.pdf')
 LOGO_PATH = os.path.join(os.path.dirname(__file__), '..', 'images', 'Escudo.jpg')
 
-st.set_page_config(page_title="Reglamento - U. del Pacífico", page_icon="🎓", layout="centered")
+# --- Configuración de la página ---
+st.set_page_config(
+    page_title="Reglamento - U. del Pacífico",
+    page_icon="🎓",
+    layout="centered"
+)
 
-# Estilos minimalistas CSS
+# Estilos minimalistas
 st.markdown("""
     <style>
         #MainMenu {visibility: hidden;}
@@ -18,7 +37,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Encabezado con imagen y título
+# --- Encabezado con escudo ---
 col1, col2 = st.columns([1, 4])
 with col1:
     if os.path.exists(LOGO_PATH):
@@ -29,43 +48,51 @@ with col2:
 
 st.markdown("---")
 
-# 1. Cargar y cachear el PDF
-@st.cache_data
-def cargar_reglamento():
-    return extraer_texto_pdf(PDF_PATH)
+# --- Carga del sistema RAG (una sola vez por sesión del servidor) ---
+@st.cache_resource(show_spinner="Indexando el reglamento oficial...")
+def inicializar_rag():
+    """
+    Carga el PDF, crea los chunks y construye/carga el vectorstore FAISS.
+    Se ejecuta una sola vez gracias a @st.cache_resource.
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key or api_key == "tu_api_key_aqui":
+        return None
+    chunks = cargar_y_trocear_pdf(PDF_PATH)
+    return obtener_o_crear_vectorstore(chunks, api_key)
 
-with st.spinner("Cargando el reglamento oficial..."):
-    texto_reglamento = cargar_reglamento()
-    
-if not texto_reglamento:
-    st.error("No se pudo cargar el documento PDF. Verifica la ruta y que el archivo exista.")
+vectorstore = inicializar_rag()
+
+if vectorstore is None:
+    st.error("No se pudo inicializar el sistema. Verifica tu GEMINI_API_KEY.")
     st.stop()
 
-# 2. Inicializar el estado de la sesión para la memoria
+# --- Estado de sesión para memoria conversacional ---
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = []
 
-# Mostrar el historial de mensajes
+# Mostrar historial de conversación
 for msg in st.session_state.mensajes:
     role = "user" if isinstance(msg, HumanMessage) else "assistant"
     with st.chat_message(role):
         st.markdown(msg.content)
 
-# 3. Interfaz de Chat
+# --- Interfaz de chat ---
 pregunta = st.chat_input("Escribe tu pregunta sobre el reglamento aquí...")
 
 if pregunta:
-    # Mostrar la pregunta del usuario en la pantalla
     with st.chat_message("user"):
         st.markdown(pregunta)
-        
-    # Obtener respuesta del modelo
+
     with st.chat_message("assistant"):
-        with st.spinner("Pensando..."):
-            # Enviar la pregunta, pasando el historial almacenado
-            respuesta = consultar_gemini(texto_reglamento, pregunta, st.session_state.mensajes)
+        with st.spinner("Buscando en el reglamento..."):
+            respuesta = consultar_con_rag(
+                vectorstore,
+                pregunta,
+                st.session_state.mensajes
+            )
             st.markdown(respuesta)
-            
-    # Guardar en memoria (estado de la sesión)
+
+    # Guardar en memoria de sesión
     st.session_state.mensajes.append(HumanMessage(content=pregunta))
     st.session_state.mensajes.append(AIMessage(content=respuesta))

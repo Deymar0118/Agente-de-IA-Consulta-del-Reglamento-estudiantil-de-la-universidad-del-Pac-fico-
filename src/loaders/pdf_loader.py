@@ -3,7 +3,7 @@ Módulo de carga y troceado de documentos PDF.
 Responsabilidad: Leer el archivo PDF y dividirlo en fragmentos manejables.
 """
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def cargar_y_trocear_pdf(ruta_pdf: str) -> list:

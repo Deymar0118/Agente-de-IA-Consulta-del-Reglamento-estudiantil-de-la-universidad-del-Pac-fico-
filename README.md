@@ -16,7 +16,7 @@ El proyecto está diseñado bajo el patrón **RAG (Retrieval-Augmented Generatio
 
 ---
 
-## Pasos de nstalación y Ejecución Local
+## Pasos de Instalación y Ejecución Local
 
 ### 1. Clonar el repositorio y preparar el entorno
 Abre tu terminal y ejecuta:
@@ -43,3 +43,13 @@ streamlit run src/app.py
 ```
 El navegador se abrirá automáticamente en `http://localhost:8501`.
 
+---
+
+## Despliegue en la Nube
+
+Como alternativa a Oracle Cloud Infrastructure (OCI) sugerido inicialmente, este proyecto ha sido desplegado exitosamente utilizando **Streamlit Community Cloud**. Esta decisión arquitectónica se tomó porque:
+1. Ofrece una integración nativa y optimizada para aplicaciones basadas en Streamlit.
+2. Permite despliegue continuo y automático (CI/CD) directamente desde el repositorio de GitHub.
+3. No requiere administración de servidores ni apertura manual de puertos de red, lo que resulta en una infraestructura mucho más eficiente para este caso de uso.
+
+*(Para configurar el despliegue en Streamlit Cloud, basta con conectar el repositorio y añadir la variable `GEMINI_API_KEY` en la sección "Advanced settings -> Secrets").*

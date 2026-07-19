@@ -40,6 +40,9 @@ def consultar_con_rag(vectorstore: FAISS, pregunta: str, historial: list = None)
         fragmentos = retriever.invoke(pregunta)
         contexto = "\n\n---\n\n".join([f.page_content for f in fragmentos])
 
+        # Extraer números de página únicos (1-indexed)
+        paginas = sorted(list(set([f.metadata.get("page", 0) + 1 for f in fragmentos])))
+
         # 2. Inicializar el LLM
         llm = ChatGoogleGenerativeAI(
             model="gemini-flash-latest",
@@ -57,6 +60,12 @@ def consultar_con_rag(vectorstore: FAISS, pregunta: str, historial: list = None)
             "historial": historial,
             "pregunta": pregunta
         })
+        
+        # Añadir las fuentes al final si la respuesta es afirmativa
+        if "no encuentro información sobre eso" not in respuesta.lower() and paginas:
+            paginas_str = ", ".join(map(str, paginas))
+            respuesta += f"\n\n*📄 Fuentes: Reglamento Estudiantil (Pág. {paginas_str})*"
+            
         return respuesta
 
     except Exception as e:

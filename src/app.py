@@ -34,27 +34,35 @@ st.markdown("""
         header {visibility: hidden;}
         footer {visibility: hidden;}
         .stChatInputContainer {padding-bottom: 20px;}
+        
+        .side-bar-left {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 100vh;
+            background-color: #0F4C81;
+            z-index: 99999;
+        }
+        .side-bar-right {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 100vh;
+            background-color: #007A33;
+            z-index: 99999;
+        }
+        
+        /* En pantallas más pequeñas (como móviles), las hacemos más delgadas para no tapar el chat */
+        @media (max-width: 992px) {
+            .side-bar-left, .side-bar-right {
+                width: 10px;
+            }
+        }
     </style>
-    <!-- Barra azul a la izquierda -->
-    <div style="
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 8px;
-        height: 100vh;
-        background-color: #0F4C81;
-        z-index: 99999;
-    "></div>
-    <!-- Barra verde a la derecha -->
-    <div style="
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 8px;
-        height: 100vh;
-        background-color: #007A33;
-        z-index: 99999;
-    "></div>
+    <div class="side-bar-left"></div>
+    <div class="side-bar-right"></div>
 """, unsafe_allow_html=True)
 
 # --- Encabezado con escudo ---

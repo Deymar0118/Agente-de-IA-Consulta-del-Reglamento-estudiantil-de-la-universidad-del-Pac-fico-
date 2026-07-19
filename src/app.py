@@ -27,7 +27,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Estilos minimalistas
+# Estilos minimalistas y barras laterales decorativas
 st.markdown("""
     <style>
         #MainMenu {visibility: hidden;}
@@ -35,6 +35,26 @@ st.markdown("""
         footer {visibility: hidden;}
         .stChatInputContainer {padding-bottom: 20px;}
     </style>
+    <!-- Barra azul a la izquierda -->
+    <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 8px;
+        height: 100vh;
+        background-color: #0F4C81;
+        z-index: 99999;
+    "></div>
+    <!-- Barra verde a la derecha -->
+    <div style="
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 8px;
+        height: 100vh;
+        background-color: #007A33;
+        z-index: 99999;
+    "></div>
 """, unsafe_allow_html=True)
 
 # --- Encabezado con escudo ---

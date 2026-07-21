@@ -123,5 +123,8 @@ Como alternativa a la infraestructura en la nube tradicional, este proyecto ha s
 
 
 ## Captura del funcionamiento del agente
+<img width="1365" height="767" alt="Captura de pantalla 2026-07-20 220003" src="https://github.com/user-attachments/assets/e3ab047d-3e60-4bbd-9533-9db584602028" />
+
+## Enlace para acceder al agente: https://zgn7qh6hdiradcqrngn724.streamlit.app/
 
 

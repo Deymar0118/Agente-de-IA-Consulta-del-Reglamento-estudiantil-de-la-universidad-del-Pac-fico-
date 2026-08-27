@@ -14,7 +14,7 @@ def consultar_con_rag(vectorstore: FAISS, pregunta: str, historial: list = None)
     Realiza una consulta al LLM usando el patrón RAG completo.
 
     Flujo:
-    1. Recupera los 4 fragmentos más relevantes del vectorstore.
+    1. Recupera los 8 fragmentos más relevantes y diversos (MMR) del vectorstore.
     2. Combina esos fragmentos como contexto.
     3. Envía al LLM: contexto + historial + pregunta.
     4. Retorna la respuesta limpia como texto.
@@ -35,8 +35,16 @@ def consultar_con_rag(vectorstore: FAISS, pregunta: str, historial: list = None)
         historial = []
 
     try:
-        # 1. Recuperar fragmentos relevantes (la "R" de RAG)
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
+        # 1. Recuperar fragmentos relevantes con MMR (la "R" de RAG)
+        # MMR (Maximal Marginal Relevance) garantiza diversidad entre los chunks
+        # recuperados, evitando fragmentos duplicados y aumentando la cobertura.
+        retriever = vectorstore.as_retriever(
+            search_type="mmr",
+            search_kwargs={
+                "k": 8,        # Número de fragmentos a usar en la respuesta
+                "fetch_k": 25, # Candidatos a evaluar antes de seleccionar por MMR
+            }
+        )
         fragmentos = retriever.invoke(pregunta)
         contexto = "\n\n---\n\n".join([f.page_content for f in fragmentos])
 
@@ -45,9 +53,9 @@ def consultar_con_rag(vectorstore: FAISS, pregunta: str, historial: list = None)
 
         # 2. Inicializar el LLM
         llm = ChatGoogleGenerativeAI(
-            model="gemini-flash-latest",
+            model="gemini-3.6-flash",  # Modelo más reciente disponible
             google_api_key=api_key,
-            temperature=0
+            temperature=0.1            # Baja temperatura = respuestas más consistentes y precisas
         )
 
         # 3. Construir la cadena con el prompt centralizado
@@ -60,12 +68,12 @@ def consultar_con_rag(vectorstore: FAISS, pregunta: str, historial: list = None)
             "historial": historial,
             "pregunta": pregunta
         })
-        
+
         # Añadir las fuentes al final si la respuesta es afirmativa
         if "no encuentro información sobre eso" not in respuesta.lower() and paginas:
             paginas_str = ", ".join(map(str, paginas))
             respuesta += f"\n\n*📄 Fuentes: Reglamento Estudiantil (Pág. {paginas_str})*"
-            
+
         return respuesta
 
     except Exception as e:

@@ -57,19 +57,25 @@ def cargar_vectorstore(api_key: str) -> FAISS | None:
     return None
 
 
-def obtener_o_crear_vectorstore(chunks: list, api_key: str) -> FAISS:
+def obtener_o_crear_vectorstore(chunks: list, api_key: str, force_rebuild: bool = False) -> FAISS:
     """
     Punto de entrada principal: intenta cargar el índice desde disco.
-    Si no existe, lo crea desde los chunks y lo guarda.
+    Si no existe o se fuerza la reconstrucción, lo crea desde los chunks y lo guarda.
 
     Args:
         chunks: Fragmentos del PDF (solo se usan si hay que crear el índice).
         api_key: Clave de API de Google.
+        force_rebuild: Si es True, recrea el índice aunque ya exista en disco.
+                       Útil tras cambios en el chunking o el documento fuente.
 
     Returns:
         El objeto FAISS listo para búsquedas.
     """
-    vectorstore = cargar_vectorstore(api_key)
-    if vectorstore is None:
-        vectorstore = crear_y_guardar_vectorstore(chunks, api_key)
-    return vectorstore
+    if not force_rebuild:
+        vectorstore = cargar_vectorstore(api_key)
+        if vectorstore is not None:
+            return vectorstore
+    else:
+        print("[VectorStore] Regenerando índice FAISS (force_rebuild=True)...")
+
+    return crear_y_guardar_vectorstore(chunks, api_key)

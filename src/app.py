@@ -80,8 +80,10 @@ st.markdown("---")
 @st.cache_resource(show_spinner="Indexando el reglamento oficial...")
 def inicializar_rag(api_key: str):
     """
-    Carga el PDF, crea los chunks y construye/carga el vectorstore FAISS.
+    Carga el PDF, crea los chunks (con separadores semánticos mejorados)
+    y construye/carga el vectorstore FAISS.
     Se ejecuta una sola vez gracias a @st.cache_resource.
+    Modelo LLM: gemini-3.6-flash | Retrieval: MMR k=8
     """
     chunks = cargar_y_trocear_pdf(PDF_PATH)
     return obtener_o_crear_vectorstore(chunks, api_key)

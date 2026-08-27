@@ -9,6 +9,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 def cargar_y_trocear_pdf(ruta_pdf: str) -> list:
     """
     Carga un PDF y lo divide en fragmentos (chunks) para procesamiento RAG.
+    Los separadores están ordenados semánticamente para respetar la estructura
+    del reglamento (Capítulos, Artículos, Parágrafos).
 
     Args:
         ruta_pdf: Ruta absoluta al archivo PDF.
@@ -21,8 +23,20 @@ def cargar_y_trocear_pdf(ruta_pdf: str) -> list:
     documentos = loader.load()
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,      # Tamaño de cada fragmento en caracteres
-        chunk_overlap=200,    # Solapamiento para no perder contexto entre fragmentos
+        # Separadores ordenados de mayor a menor semántica, priorizando
+        # los límites naturales del reglamento (artículos, parágrafos)
+        separators=[
+            "\nCAPÍTULO",
+            "\nArtículo",
+            "\nArt\u00edculo",   # variante con tilde escapada
+            "\nParágrafo",
+            "\n\n",
+            "\n",
+            " ",
+            "",
+        ],
+        chunk_size=1200,      # Mayor tamaño para preservar artículos completos
+        chunk_overlap=250,    # Mayor solapamiento para no perder contexto entre fragmentos
         length_function=len,
     )
 

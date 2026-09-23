@@ -16,7 +16,7 @@ FAISS_INDEX_PATH = os.path.join(os.path.dirname(__file__), "faiss_index")
 def obtener_embeddings(api_key: str) -> GoogleGenerativeAIEmbeddings:
     """Inicializa el modelo de embeddings (cacheado: se crea UNA sola vez por proceso)."""
     return GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",
+        model="models/text-embedding-004",
         google_api_key=api_key
     )
 

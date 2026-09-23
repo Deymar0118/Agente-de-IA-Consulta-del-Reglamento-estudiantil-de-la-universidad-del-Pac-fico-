@@ -16,7 +16,7 @@ FAISS_INDEX_PATH = os.path.join(os.path.dirname(__file__), "faiss_index")
 def obtener_embeddings(api_key: str) -> GoogleGenerativeAIEmbeddings:
     """Inicializa el modelo de embeddings (cacheado: se crea UNA sola vez por proceso)."""
     return GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",
+        model="models/gemini-embedding-001",
         google_api_key=api_key
     )
 
@@ -33,9 +33,23 @@ def crear_y_guardar_vectorstore(chunks: list, api_key: str) -> FAISS:
     Returns:
         El objeto FAISS con el índice creado.
     """
-    print("[VectorStore] Generando embeddings y construyendo índice FAISS...")
+    print("[VectorStore] Generando embeddings y construyendo índice FAISS en lotes...")
     embeddings = obtener_embeddings(api_key)
-    vectorstore = FAISS.from_documents(chunks, embeddings)
+    import time
+    batch_size = 50
+    vectorstore = None
+    total_lotes = (len(chunks) + batch_size - 1) // batch_size
+    for idx, i in enumerate(range(0, len(chunks), batch_size), start=1):
+        batch = chunks[i:i + batch_size]
+        print(f"[VectorStore] Procesando lote {idx}/{total_lotes} ({len(batch)} fragmentos)...")
+        if vectorstore is None:
+            vectorstore = FAISS.from_documents(batch, embeddings)
+        else:
+            vectorstore.add_documents(batch)
+        if i + batch_size < len(chunks):
+            print("[VectorStore] Pausa de 65s para reiniciar ventana de 1 minuto del Free Tier de Google...")
+            time.sleep(65)
+
     vectorstore.save_local(FAISS_INDEX_PATH)
     print(f"[VectorStore] Índice guardado en: {FAISS_INDEX_PATH}")
     return vectorstore

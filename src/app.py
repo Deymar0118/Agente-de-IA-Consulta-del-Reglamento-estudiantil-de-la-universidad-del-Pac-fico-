@@ -127,7 +127,7 @@ def inicializar_rag(api_key: str):
 def obtener_api_key() -> str:
     try:
         return st.secrets["GEMINI_API_KEY"]
-    except (KeyError, FileNotFoundError):
+    except Exception:
         return os.getenv("GEMINI_API_KEY", "")
 
 api_key = obtener_api_key()

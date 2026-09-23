@@ -3,6 +3,7 @@ Módulo de gestión del Vector Store con FAISS.
 Responsabilidad: Crear, guardar y cargar el índice vectorial de los documentos.
 """
 import os
+from functools import lru_cache
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
@@ -11,10 +12,11 @@ from langchain_community.vectorstores import FAISS
 FAISS_INDEX_PATH = os.path.join(os.path.dirname(__file__), "faiss_index")
 
 
+@lru_cache(maxsize=1)
 def obtener_embeddings(api_key: str) -> GoogleGenerativeAIEmbeddings:
-    """Inicializa el modelo de embeddings de Google."""
+    """Inicializa el modelo de embeddings (cacheado: se crea UNA sola vez por proceso)."""
     return GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-001",  # Modelo disponible en este entorno
+        model="models/gemini-embedding-001",
         google_api_key=api_key
     )
 
@@ -42,18 +44,29 @@ def crear_y_guardar_vectorstore(chunks: list, api_key: str) -> FAISS:
 def cargar_vectorstore(api_key: str) -> FAISS | None:
     """
     Carga el índice FAISS desde disco si existe.
+    Si el índice está corrupto o incompleto, lo detecta de forma segura
+    y retorna None para que el sistema lo reconstruya limpiamente.
 
     Returns:
-        El objeto FAISS cargado, o None si el índice no existe todavía.
+        El objeto FAISS cargado, o None si no existe o no se pudo cargar.
     """
     if os.path.exists(FAISS_INDEX_PATH):
         print("[VectorStore] Cargando índice FAISS existente desde disco...")
-        embeddings = obtener_embeddings(api_key)
-        return FAISS.load_local(
-            FAISS_INDEX_PATH,
-            embeddings,
-            allow_dangerous_deserialization=True
-        )
+        try:
+            embeddings = obtener_embeddings(api_key)
+            return FAISS.load_local(
+                FAISS_INDEX_PATH,
+                embeddings,
+                allow_dangerous_deserialization=True
+            )
+        except Exception as e:
+            print(f"[VectorStore] Advertencia: Error al cargar índice FAISS ({e}). Se reconstruirá.")
+            try:
+                import shutil
+                shutil.rmtree(FAISS_INDEX_PATH, ignore_errors=True)
+            except Exception:
+                pass
+            return None
     return None
 
 
@@ -77,5 +90,11 @@ def obtener_o_crear_vectorstore(chunks: list, api_key: str, force_rebuild: bool 
             return vectorstore
     else:
         print("[VectorStore] Regenerando índice FAISS (force_rebuild=True)...")
+
+    # Si chunks vino vacío (por ejemplo tras fallo de lectura de índice), cargarlos automáticamente
+    if not chunks:
+        from loaders.pdf_loader import cargar_y_trocear_pdf
+        pdf_path = os.path.join(os.path.dirname(__file__), '..', '..', 'documentos', 'Reglamento.pdf')
+        chunks = cargar_y_trocear_pdf(pdf_path)
 
     return crear_y_guardar_vectorstore(chunks, api_key)

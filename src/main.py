@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 load_dotenv()
 
 from loaders.pdf_loader import cargar_y_trocear_pdf
-from vectorstore.faiss_store import obtener_o_crear_vectorstore
-from llm.gemini_chain import consultar_con_rag
+from vectorstore.faiss_store import obtener_o_crear_vectorstore, FAISS_INDEX_PATH
+from llm.gemini_chain import consultar_con_rag_stream
 
 # Ruta al documento PDF
 PDF_PATH = os.path.join(os.path.dirname(__file__), '..', 'documentos', 'Reglamento.pdf')
@@ -29,11 +29,12 @@ if __name__ == "__main__":
         print("Error: Configura tu GEMINI_API_KEY en el archivo .env")
         sys.exit(1)
 
-    # 1. Cargar y trocear el PDF
-    chunks = cargar_y_trocear_pdf(PDF_PATH)
-
-    # 2. Obtener o crear el vectorstore FAISS
-    vectorstore = obtener_o_crear_vectorstore(chunks, api_key)
+    # 1. Obtener o crear el vectorstore FAISS (carga instantánea si ya existe en disco)
+    if os.path.exists(FAISS_INDEX_PATH):
+        vectorstore = obtener_o_crear_vectorstore(chunks=[], api_key=api_key)
+    else:
+        chunks = cargar_y_trocear_pdf(PDF_PATH)
+        vectorstore = obtener_o_crear_vectorstore(chunks, api_key)
 
     print("\n¡Sistema listo! Puedes hacer preguntas sobre el reglamento.")
     print("Escribe 'salir' para terminar.\n")
@@ -51,8 +52,14 @@ if __name__ == "__main__":
             if not pregunta.strip():
                 continue
 
-            respuesta = consultar_con_rag(vectorstore, pregunta, historial)
-            print(f"\n🤖 Asistente:\n{respuesta}")
+            print("\n🤖 Asistente: ", end="", flush=True)
+            texto_acumulado = []
+            for chunk in consultar_con_rag_stream(vectorstore, pregunta, historial):
+                print(chunk, end="", flush=True)
+                texto_acumulado.append(chunk)
+            print()
+
+            respuesta = "".join(texto_acumulado)
 
             # Guardar en historial (memoria conversacional)
             historial.append(HumanMessage(content=pregunta))

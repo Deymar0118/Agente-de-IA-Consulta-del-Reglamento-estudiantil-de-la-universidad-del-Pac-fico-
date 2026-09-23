@@ -63,7 +63,7 @@ st.markdown("""
 col1, col2 = st.columns([1, 4])
 with col1:
     if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, use_container_width=True)
+        st.image(LOGO_PATH, use_column_width=True)
 with col2:
     st.title("Asistente IA")
     st.markdown("**Universidad del Pacífico**")

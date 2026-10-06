@@ -12,3 +12,8 @@ __pycache__/
 
 # Archivos temporales
 test_models.py
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/

@@ -21,9 +21,8 @@ _PROMPT_CONTEXT_CACHE = None   # ChatPromptTemplate contextualización
 def _obtener_llm(api_key: str) -> ChatGoogleGenerativeAI:
     """Retorna la instancia del LLM cacheada para la API key dada."""
     return ChatGoogleGenerativeAI(
-        model="gemini-3.6-flash",
-        google_api_key=api_key,
-        temperature=0.1
+        model="gemini-3.1-flash-lite",
+        google_api_key=api_key
     )
 
 
